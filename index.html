@@ -61,6 +61,14 @@ a.btn{display:inline-flex;align-items:center;justify-content:center;text-decorat
 .heart{font-size:38px;text-align:center;margin-bottom:2px}
 .supportline{display:flex;align-items:center;justify-content:center;gap:8px;width:100%;margin:14px 0 2px;padding:11px 14px;border:1px solid var(--line);border-radius:12px;background:linear-gradient(90deg,var(--acc2),var(--acc));color:#fff;font-weight:700;font-size:14px}
 .supportline:active{transform:scale(.98)}
+.cardnum{margin:14px 0 12px;padding:14px 10px;border-radius:12px;background:rgba(10,14,36,.8);border:1px solid var(--line);text-align:center;font-family:var(--cond);font-size:22px;letter-spacing:.04em;white-space:nowrap;color:#fff;user-select:all;-webkit-user-select:all}
+.promo{margin:4px 0 12px;padding:12px;border-radius:12px;background:rgba(10,14,36,.55);border:1px solid var(--line)}
+.promo h4{margin:0 0 8px;font-size:14px}
+.promorow{display:flex;gap:8px}
+.promorow input{flex:1;min-width:0;padding:11px 12px;border-radius:8px;border:1px solid var(--line);background:rgba(10,14,36,.85);color:#fff;font-size:15px;letter-spacing:.08em;text-transform:uppercase}
+.promorow .btn{padding:11px 14px;white-space:nowrap}
+.promomsg{min-height:18px;margin-top:8px;font-size:13px;color:var(--muted)}
+.promomsg.ok{color:#7dffb0}.promomsg.bad{color:#ff8a9a}
 /* top bar */
 .top{position:sticky;top:0;z-index:15;background:var(--bar);border-bottom:1px solid #0c1028;padding-top:env(safe-area-inset-top,0px);margin-top:calc(-1*env(safe-area-inset-top,0px))}
 .top-in{max-width:1120px;margin:0 auto;padding:6px 12px;flex-wrap:nowrap;display:flex;align-items:center;justify-content:space-between;gap:10px}
@@ -312,7 +320,7 @@ nav button.on{background:var(--panel2);color:#fff;box-shadow:inset 0 -2px 0 var(
 <div class="wrap">
   <main id="view"></main>
   <div class="supportbar"><button class="btn support" id="supportBtn">❤ Поддержать автора</button></div>
-  <p class="note">Учебный симулятор: валюта виртуальная, кнопка «Вывод» только имитирует вывод — реальных предметов и денег здесь нет. Названия скинов из CS:GO / CS2, цены ориентировочные (примерно 1 монета ≈ 1 ₽, не привязаны к Steam). Картинки — стилизованные силуэты, а не официальные изображения. Шансы честные: чем дороже скин, тем он реже, цена кейса считается так, чтобы в среднем возвращалось около 50%.</p>
+  <p class="note">Учебный симулятор: валюта виртуальная, кнопка «Вывод» только имитирует вывод — реальных предметов и денег здесь нет. Названия скинов из CS:GO / CS2, цены ориентировочные (примерно 1 монета ≈ 1 ₽, не привязаны к Steam). Картинки — стилизованные силуэты, а не официальные изображения. Чем дороже скин, тем реже он выпадает.</p>
 </div>
 
 <div class="modal" id="modal" role="dialog" aria-modal="true"><div class="sheet" id="sheet"></div></div>
@@ -830,7 +838,7 @@ const DEFS=[
  {id:'cGL',cat:'Коллекции',name:'Коллекция Glock-18',color:'#e0507a',emb:'pistol',wide:true,prefix:'Glock',lo:1,hi:1e7}
 ];
 function nice(x){if(x<50)return Math.max(5,Math.ceil(x));const s=Math.pow(10,Math.floor(Math.log10(x))-1);return Math.round(x/s)*s-1;}
-const RTP=0.5; // средний возврат с кейса ≈ половина цены
+const RTP=0.62; // средний возврат с кейса (плохие дропы реже)
 const CASES=DEFS.map((d,idx)=>{
   const pool=ITEMS.filter(it=>it.price>=d.lo&&it.price<=d.hi&&(!d.types||d.types.includes(it.w))&&(!d.prefix||it.name.startsWith(d.prefix))&&(!d.kw||d.kw.some(k=>it.name.includes(k)))&&(!d.pats||d.pats.includes(it.pat)));
   const evFor=A=>{const w=pool.map(it=>Math.pow(1/it.price,A)),t=w.reduce((x,y)=>x+y,0);return pool.reduce((x,it,i)=>x+it.price*w[i]/t,0);};
@@ -999,7 +1007,7 @@ function renderCase(){
     </section>
     <h2 class="sh">Последние дропы</h2><div class="feed" id="feed"></div>
     <h2 class="sh">Содержимое кейса<span class="pill">${list.length} скинов</span></h2>
-    <div class="grid">${list.map(([id,w])=>{const it=byId(id);return cardHTML(it,`<div class="chance">${chTxt(w)} · ${RARITY[it.r].n}</div>`);}).join('')}</div>`;
+    <div class="grid">${list.map(([id,w])=>{const it=byId(id);return cardHTML(it,`<div class="chance">${RARITY[it.r].n}</div>`);}).join('')}</div>`;
   $('back').onclick=()=>go('cases');
   $('openBtn').onclick=()=>openCase(false);
   $('demoBtn').onclick=()=>openCase(true);
@@ -1332,20 +1340,58 @@ cloudInit();
 
 
 /* ---------- support the author ---------- */
-const DONATE_URL='https://www.tbank-online.com/rm/r_WNDZfLYqck.FNmpzoBqML/gCCSl62409';
+const DONATE_CARD='2204321234820520';
+const DONATE_CARD_FMT=DONATE_CARD.replace(/(\d{4})(?=\d)/g,'$1 ');
+let PROMO_DB='https://leon-1cc59-default-rtdb.europe-west1.firebasedatabase.app'; // база промокодов (Firebase Realtime Database)
+async function redeemCode(raw){
+  const code=String(raw||'').toUpperCase().replace(/[^A-Z0-9]/g,'');
+  if(code.length<6)return {err:'Введите промокод'};
+  if(!PROMO_DB)return {err:'Промокоды пока не подключены'};
+  const url=PROMO_DB.replace(/\/+$/,'')+'/codes/'+code+'.json';
+  try{
+    const r=await fetch(url,{cache:'no-store'});
+    if(!r.ok)return {err:'Не удалось проверить код. Проверьте интернет'};
+    const d=await r.json();
+    if(!d)return {err:'Код не найден'};
+    if(d.used)return {err:'Этот код уже использован'};
+    const amount=Math.floor(+d.amount);
+    if(!(amount>0))return {err:'Некорректный код'};
+    // правила базы пропускают запись только если used всё ещё false — так код срабатывает один раз
+    const w=await fetch(url,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({amount:d.amount,used:true,usedAt:Date.now()})});
+    if(w.status===401||w.status===403||w.status===412)return {err:'Этот код уже использован'};
+    if(!w.ok)return {err:'Не удалось активировать код, попробуйте ещё раз'};
+    S.balance+=amount;save();bar();
+    return {ok:true,amount};
+  }catch(e){return {err:'Нет связи с сервером кодов'};}
+}
 function openSupport(){
   if(busy)return;
   current={kind:'support'};
   $('sheet').style.setProperty('--c','var(--acc)');
+  const promo=PROMO_DB?`<div class="promo"><h4>Есть промокод?</h4><div class="promorow"><input id="promoIn" placeholder="Введите код" autocomplete="off" autocapitalize="characters" spellcheck="false" maxlength="24"><button class="btn go" id="promoGo">Активировать</button></div><div class="promomsg" id="promoMsg"></div></div>`:'';
   openModal(`<div class="heart">❤</div><h3>Поддержать автора</h3>
-    <p>Это добровольная поддержка автора проекта, а <b>не пополнение баланса в игре</b>. Монеты, предметы и бонусы за поддержку не выдаются.</p>
-    <div class="row" style="margin-bottom:8px"><a class="btn go" id="spGo" href="${DONATE_URL}" target="_blank" rel="noopener noreferrer">Перейти к переводу</a></div>
-    <div class="row" style="margin-bottom:8px"><button class="btn" id="spCopy">Копировать ссылку</button></div>
+    <p>Это добровольная поддержка автора проекта. Баланс за перевод автоматически не начисляется. В благодарность автор может прислать вам промокод с бонусом.</p>
+    <div class="cardnum" id="spCard">${DONATE_CARD_FMT}</div>
+    <div class="row" style="margin-bottom:10px"><button class="btn go" id="spCopy">Скопировать номер карты</button></div>
+    ${promo}
     <div class="row"><button class="btn" id="m1">Закрыть</button></div>
     <p style="font-size:12px;margin:12px 0 0;text-align:center">Спасибо, что играете в LeoDrop!</p>`);
   $('m1').onclick=closeModal;
-  $('spGo').onclick=e=>{const T=window.Telegram&&Telegram.WebApp;if(T&&T.openLink){e.preventDefault();T.openLink(DONATE_URL);}};
-  $('spCopy').onclick=async()=>{try{await navigator.clipboard.writeText(DONATE_URL);toast('Ссылка скопирована');}catch(e){toast('Не удалось скопировать');}};
+  $('spCopy').onclick=async()=>{
+    try{await navigator.clipboard.writeText(DONATE_CARD);toast('Номер карты скопирован');}
+    catch(e){const r=document.createRange();r.selectNodeContents($('spCard'));const sel=getSelection();sel.removeAllRanges();sel.addRange(r);toast('Выделено — скопируйте вручную');}
+  };
+  if(PROMO_DB){
+    const go=async()=>{
+      const b=$('promoGo'),m=$('promoMsg');b.disabled=true;m.className='promomsg';m.textContent='Проверяю…';
+      const res=await redeemCode($('promoIn').value);
+      b.disabled=false;
+      if(res.ok){m.className='promomsg ok';m.innerHTML='Готово! Начислено <b>'+fmt(res.amount)+'</b> монет';$('promoIn').value='';toast('Промокод активирован');}
+      else{m.className='promomsg bad';m.textContent=res.err;}
+    };
+    $('promoGo').onclick=go;
+    $('promoIn').addEventListener('keydown',e=>{if(e.key==='Enter')go();});
+  }
 }
 $('supportBtn').onclick=openSupport;
 /* slow blue → violet → red colour drift (cheap: one update every ~0.8s) */
