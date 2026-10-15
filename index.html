@@ -55,6 +55,12 @@ button:focus-visible,input:focus-visible{outline:2px solid var(--acc);outline-of
 svg:not(.big) [filter]{filter:none}
 .cc,.card{content-visibility:auto;contain-intrinsic-size:auto 230px}
 .card{contain-intrinsic-size:auto 120px}
+.supportbar{display:flex;justify-content:center;margin:26px 0 4px}
+.btn.support{padding:12px 22px;border-radius:12px;background:linear-gradient(90deg,var(--acc2),var(--acc));border-color:transparent;color:#fff;font-size:15px}
+a.btn{display:inline-flex;align-items:center;justify-content:center;text-decoration:none;color:#fff}
+.heart{font-size:38px;text-align:center;margin-bottom:2px}
+.supportline{display:flex;align-items:center;justify-content:center;gap:8px;width:100%;margin:14px 0 2px;padding:11px 14px;border:1px solid var(--line);border-radius:12px;background:linear-gradient(90deg,var(--acc2),var(--acc));color:#fff;font-weight:700;font-size:14px}
+.supportline:active{transform:scale(.98)}
 /* top bar */
 .top{position:sticky;top:0;z-index:15;background:var(--bar);border-bottom:1px solid #0c1028;padding-top:env(safe-area-inset-top,0px);margin-top:calc(-1*env(safe-area-inset-top,0px))}
 .top-in{max-width:1120px;margin:0 auto;padding:6px 12px;flex-wrap:nowrap;display:flex;align-items:center;justify-content:space-between;gap:10px}
@@ -305,7 +311,8 @@ nav button.on{background:var(--panel2);color:#fff;box-shadow:inset 0 -2px 0 var(
 
 <div class="wrap">
   <main id="view"></main>
-  <p class="note">Учебный симулятор: валюта виртуальная, кнопка «Вывод» только имитирует вывод — реальных предметов и денег здесь нет. Названия скинов из CS:GO / CS2, цены ориентировочные (примерно 1 монета ≈ 1 ₽, не привязаны к Steam). Картинки — стилизованные силуэты, а не официальные изображения. Шансы честные: чем дороже скин, тем он реже, цена кейса считается так, чтобы в среднем возвращалось около 100%.</p>
+  <div class="supportbar"><button class="btn support" id="supportBtn">❤ Поддержать автора</button></div>
+  <p class="note">Учебный симулятор: валюта виртуальная, кнопка «Вывод» только имитирует вывод — реальных предметов и денег здесь нет. Названия скинов из CS:GO / CS2, цены ориентировочные (примерно 1 монета ≈ 1 ₽, не привязаны к Steam). Картинки — стилизованные силуэты, а не официальные изображения. Шансы честные: чем дороже скин, тем он реже, цена кейса считается так, чтобы в среднем возвращалось около 50%.</p>
 </div>
 
 <div class="modal" id="modal" role="dialog" aria-modal="true"><div class="sheet" id="sheet"></div></div>
@@ -823,16 +830,18 @@ const DEFS=[
  {id:'cGL',cat:'Коллекции',name:'Коллекция Glock-18',color:'#e0507a',emb:'pistol',wide:true,prefix:'Glock',lo:1,hi:1e7}
 ];
 function nice(x){if(x<50)return Math.max(5,Math.ceil(x));const s=Math.pow(10,Math.floor(Math.log10(x))-1);return Math.round(x/s)*s-1;}
+const RTP=0.5; // средний возврат с кейса ≈ половина цены
 const CASES=DEFS.map((d,idx)=>{
   const pool=ITEMS.filter(it=>it.price>=d.lo&&it.price<=d.hi&&(!d.types||d.types.includes(it.w))&&(!d.prefix||it.name.startsWith(d.prefix))&&(!d.kw||d.kw.some(k=>it.name.includes(k)))&&(!d.pats||d.pats.includes(it.pat)));
   const evFor=A=>{const w=pool.map(it=>Math.pow(1/it.price,A)),t=w.reduce((x,y)=>x+y,0);return pool.reduce((x,it,i)=>x+it.price*w[i]/t,0);};
+  const price0=d.target||nice(evFor(1.2));
   let A=1.2;
-  if(d.target){let l=-3,h=4;for(let i=0;i<60;i++){const m=(l+h)/2;if(evFor(m)>d.target)l=m;else h=m;}A=(l+h)/2;}
+  {let l=-3,h=6;for(let i=0;i<60;i++){const m=(l+h)/2;if(evFor(m)>price0*RTP)l=m;else h=m;}A=(l+h)/2;}
   const ws=pool.map(it=>Math.pow(1/it.price,A)),tot=ws.reduce((x,y)=>x+y,0);
   const items=pool.map((it,i)=>[it.id,ws[i]/tot*100]);
   const ev=pool.reduce((x,it,i)=>x+it.price*ws[i]/tot,0);
   const sorted=pool.slice().sort((x,y)=>x.price-y.price);
-  return Object.assign({},d,{items,price:d.target||nice(ev/1.0),feat:sorted[Math.floor(sorted.length*.7)],idx});
+  return Object.assign({},d,{items,price:price0,feat:sorted[Math.floor(sorted.length*.7)],idx});
 });
 function pick(c){let x=Math.random()*100;for(const [id,w] of c.items){x-=w;if(x<=0)return byId(id);}return byId(c.items[0][0]);}
 const chTxt=p=>p<0.01?'<0.01%':p<1?p.toFixed(2)+'%':p.toFixed(1)+'%';
@@ -921,9 +930,10 @@ function openAccount(view2){
     ${stat}
     ${inCloud?`<p style="margin:-6px 0 12px;font-size:12px">${Cloud.err||('Последнее сохранение: '+(Cloud.last?Cloud.last.toLocaleTimeString('ru-RU'):'ещё нет'))}</p>`:''}
     <div class="row" style="margin-bottom:8px">${inCloud?'<button class="btn go" id="acSave">Сохранить сейчас</button>':''}<button class="btn" id="acCodeBtn">Код сохранения</button></div>
-    <div class="row"><button class="btn" id="acReset">Сбросить прогресс</button><button class="btn" id="acClose">Закрыть</button></div>`);
+    <div class="row" style="margin-bottom:8px"><button class="btn" id="acSupport">❤ Поддержать автора</button></div><div class="row"><button class="btn" id="acReset">Сбросить прогресс</button><button class="btn" id="acClose">Закрыть</button></div>`);
   if($('acSave'))$('acSave').onclick=async()=>{S.t=Date.now();await cloudPush();toast('Сохранено');openAccount();};
   $('acCodeBtn').onclick=()=>openAccount('code');
+  $('acSupport').onclick=()=>openSupport();
   $('acReset').onclick=()=>openAccount('reset');
   $('acClose').onclick=closeModal;
 }
@@ -945,7 +955,8 @@ function go(v,c){
 
 /* ---------- case list ---------- */
 function renderCases(){
-  $('view').innerHTML='<div id="sections"></div>';
+  $('view').innerHTML='<button class="supportline" id="supTop">❤ Поддержать автора</button><div id="sections"></div>';
+  $('supTop').onclick=openSupport;
   fillSections();
 }
 $('q').addEventListener('input',()=>{if(view==='cases')fillSections();});
@@ -1103,10 +1114,11 @@ const EDGE=.95;
 const baseCh=(sum,price)=>Math.min(.9,sum/price*EDGE);
 const pad2=n=>String(n).padStart(2,'0');
 function luckInfo(){
-  const d=new Date(),m=d.getMinutes(),sec=d.getSeconds();
-  if(m>=30&&m<35)return {on:true,left:(35-m)*60-sec,h:d.getHours()};
-  const next=m<30?30-m:90-m;
-  return {on:false,left:next*60-sec,h:m<30?d.getHours():(d.getHours()+1)%24};
+  const d=new Date(),sec=d.getSeconds(),mins=d.getHours()*60+d.getMinutes();
+  const CY=180,ph=(((mins-30)%CY)+CY)%CY;           // окно каждые 3 часа: 00:30, 03:30, 06:30 …
+  if(ph<5)return {on:true,left:(5-ph)*60-sec,h:Math.floor(((mins-ph)%1440)/60)};
+  const toNext=CY-ph;
+  return {on:false,left:toNext*60-sec,h:Math.floor(((mins+toNext)%1440)/60)};
 }
 const mmss=t=>pad2(Math.floor(t/60))+':'+pad2(t%60);
 function upItemsSum(){let s=0;upSel.forEach(i=>{if(S.inv[i]!==undefined)s+=byId(S.inv[i]).price;});return s;}
@@ -1170,7 +1182,7 @@ function tickLuck(force){
   const L=luckInfo();
   if(!force&&lastLuck!==null&&L.on!==lastLuck&&!upBusy){refreshUp();return;}
   $('luck').className='luck'+(L.on?' on':'');
-  $('luck').innerHTML=L.on?`<b>Удача ×100 активна!</b> Осталось ${mmss(L.left)} — все шансы умножены на 100 (1% → 100%)`:`Удача ×100 каждый час в ${pad2(L.h)}:30–${pad2(L.h)}:35 · до начала ${mmss(L.left)}`;
+  $('luck').innerHTML=L.on?`<b>Удача ×100 активна!</b> Осталось ${mmss(L.left)} — все шансы умножены на 100 (1% → 100%)`:`Удача ×100 раз в 3 часа: ${pad2(L.h)}:30–${pad2(L.h)}:35 · до начала ${mmss(L.left)}`;
 }
 setInterval(()=>{if(view==='upgrade')tickLuck(false);},1000);
 
@@ -1318,6 +1330,24 @@ bar();go('cases');
 $('acc').onclick=()=>openAccount();
 cloudInit();
 
+
+/* ---------- support the author ---------- */
+const DONATE_URL='https://www.tbank-online.com/rm/r_WNDZfLYqck.FNmpzoBqML/gCCSl62409';
+function openSupport(){
+  if(busy)return;
+  current={kind:'support'};
+  $('sheet').style.setProperty('--c','var(--acc)');
+  openModal(`<div class="heart">❤</div><h3>Поддержать автора</h3>
+    <p>Это добровольная поддержка автора проекта, а <b>не пополнение баланса в игре</b>. Монеты, предметы и бонусы за поддержку не выдаются.</p>
+    <div class="row" style="margin-bottom:8px"><a class="btn go" id="spGo" href="${DONATE_URL}" target="_blank" rel="noopener noreferrer">Перейти к переводу</a></div>
+    <div class="row" style="margin-bottom:8px"><button class="btn" id="spCopy">Копировать ссылку</button></div>
+    <div class="row"><button class="btn" id="m1">Закрыть</button></div>
+    <p style="font-size:12px;margin:12px 0 0;text-align:center">Спасибо, что играете в LeoDrop!</p>`);
+  $('m1').onclick=closeModal;
+  $('spGo').onclick=e=>{const T=window.Telegram&&Telegram.WebApp;if(T&&T.openLink){e.preventDefault();T.openLink(DONATE_URL);}};
+  $('spCopy').onclick=async()=>{try{await navigator.clipboard.writeText(DONATE_URL);toast('Ссылка скопирована');}catch(e){toast('Не удалось скопировать');}};
+}
+$('supportBtn').onclick=openSupport;
 /* slow blue → violet → red colour drift (cheap: one update every ~0.8s) */
 (function(){
   const R=document.documentElement;
