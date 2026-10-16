@@ -1369,12 +1369,11 @@ function openSupport(){
   if(busy)return;
   current={kind:'support'};
   $('sheet').style.setProperty('--c','var(--acc)');
-  const promo=PROMO_DB?`<div class="promo"><h4>3. Есть промокод?</h4><p style="font-size:12px;margin:0 0 8px">В <b>сообщении к переводу</b> напишите свой юзернейм <b id="spTag">@username</b> (только там, не в других местах). Промокод выдаётся в течение 5–10 минут после перевода и приходит вам в бота.</p><div class="promorow"><input id="promoIn" placeholder="Введите код" autocomplete="off" autocapitalize="characters" spellcheck="false" maxlength="24"><button class="btn go" id="promoGo">Активировать</button></div><div class="promomsg" id="promoMsg"></div></div>`:'';
+  const promo=PROMO_DB?`<div class="promo"><h4>3. Есть промокод?</h4><p style="font-size:12px;margin:0 0 8px">В <b>сообщении к переводу</b> напишите свой юзернейм <b>@юзернейм</b> (только там, не в других местах). Промокод выдаётся в течение 5–10 минут после перевода и приходит вам в бота.</p><div class="promorow"><input id="promoIn" placeholder="Введите код" autocomplete="off" autocapitalize="characters" spellcheck="false" maxlength="24"><button class="btn go" id="promoGo">Активировать</button></div><div class="promomsg" id="promoMsg"></div></div>`:'';
   openModal(`<div class="heart">❤</div><h3>Поддержать автора</h3>
-    <div class="promo"><h4>1. Проверка юзернейма</h4>
-      <p style="font-size:12px;margin:0 0 8px">Это только проверка: игра смотрит, нажимали ли вы Start в боте <a id="spBot" href="#" target="_blank" rel="noopener" style="color:var(--acc)">LeoDrop</a>. Если не нажимали, промокод не получится прислать. Введите свой Telegram-юзернейм и нажмите «Проверить». Он нигде не сохраняется и никому не отправляется.</p>
-      <div class="promorow"><input id="spUser" placeholder="@username" autocomplete="off" autocapitalize="off" spellcheck="false" maxlength="33"><button class="btn go" id="spCheck">Проверить</button></div>
-      <div class="promomsg" id="spMsg"></div></div>
+    <div class="promo"><h4>1. Сначала нажмите Start в боте</h4>
+      <p style="font-size:12px;margin:0 0 8px">Без этого бот не сможет прислать вам промокод в личные сообщения.</p>
+      <div class="row"><a class="btn go" id="spBot" href="https://t.me/leodropapbot" target="_blank" rel="noopener" style="display:block;text-decoration:none;text-align:center">Открыть бота</a></div></div>
     <div class="promo"><h4>2. Перевод</h4>
       <p style="font-size:12px;margin:0 0 8px">Это добровольная поддержка автора. Баланс за перевод автоматически не начисляется. <b>Чтобы получить промокод, нужно поддержать автора переводом.</b></p>
       <div class="cardnum" id="spCard">${DONATE_CARD_FMT}</div>
@@ -1387,27 +1386,6 @@ function openSupport(){
     try{await navigator.clipboard.writeText(DONATE_CARD);toast('Номер карты скопирован');}
     catch(e){const r=document.createRange();r.selectNodeContents($('spCard'));const sel=getSelection();sel.removeAllRanges();sel.addRange(r);toast('Выделено — скопируйте вручную');}
   };
-  const clean=v=>String(v||'').trim().replace(/^@/,'').replace(/[^A-Za-z0-9_]/g,'').slice(0,32);
-  const uIn=$('spUser'),uMsg=$('spMsg'),uTag=$('spTag');
-  try{uIn.value=localStorage.getItem('ld_user')||'';}catch(e){}
-  const tag=()=>{const u=clean(uIn.value);uTag.textContent=u?'@'+u:'@username';};
-  tag();uIn.addEventListener('input',tag);
-  fetch(BOT_API+'/check').then(r=>r.json()).then(d=>{if(d&&d.bot)$('spBot').href='https://t.me/'+d.bot;}).catch(()=>{});
-  const chk=async()=>{
-    const u=clean(uIn.value);
-    if(u.length<3){uMsg.className='promomsg bad';uMsg.textContent='Введите юзернейм из Telegram (от 3 символов)';return;}
-    try{localStorage.setItem('ld_user',u);}catch(e){}
-    const b=$('spCheck');b.disabled=true;uMsg.className='promomsg';uMsg.textContent='Проверяю…';
-    try{
-      const r=await fetch(BOT_API+'/check?u='+encodeURIComponent(u));const d=await r.json();
-      if(d.bot)$('spBot').href='https://t.me/'+d.bot;
-      if(d.started){uMsg.className='promomsg ok';uMsg.textContent='✅ Бот вас видит. Теперь переведите и впишите @'+u+' в сообщение к переводу.';}
-      else{uMsg.className='promomsg bad';uMsg.textContent='Бот вас не нашёл. Откройте бота по ссылке выше, нажмите Start и проверьте снова.';}
-    }catch(e){uMsg.className='promomsg bad';uMsg.textContent='Нет связи с ботом, попробуйте ещё раз';}
-    b.disabled=false;
-  };
-  $('spCheck').onclick=chk;
-  uIn.addEventListener('keydown',e=>{if(e.key==='Enter')chk();});
   if(PROMO_DB){
     const go=async()=>{
       const b=$('promoGo'),m=$('promoMsg');b.disabled=true;m.className='promomsg';m.textContent='Проверяю…';
